@@ -1,3 +1,6 @@
+<!DOCTYPE html>
+<html>
+<head>
 <style>
     .window,
     .pane {
@@ -80,3 +83,5 @@
 </table>
 <button id="generatePdf">Generate PDF</button>
 </div>
+</body>
+</html>
