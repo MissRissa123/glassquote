@@ -128,9 +128,14 @@ private function calculate_pane($pane)
 
 	public function calculate_window()
 		{
+		// Fetch data from POST
 		$windowData = $_POST['window_data'];
-		$windowDescriptions = $_POST['window_descriptions'];
-		$results = array();
+		$windowDescriptions = $_POST['window_descriptions']; // Fetch window descriptions from POST
+		$tableData = $_POST['table_data']; // Fetch table data from POST
+		$windowResultsArray = $_POST['window_results']; // Fetch windowResultsArray from POST
+		error_log(print_r($tableData, true)); // Log the table data
+		error_log(print_r($windowResultsArray, true)); // Log the windowResultsArray
+
 
 		foreach ($windowData as $windowId => $paneData) {
 			$paneResults = array();
@@ -185,9 +190,10 @@ private function calculate_pane($pane)
 
     // Fetch data from POST
     $windowData = $_POST['window_data'];
-    $windowDescriptions = $_POST['window_descriptions']; // Fetch window descriptions from POST
-    $tableData = $_POST['table_data']; // Fetch table data from POST
-	
+    $windowDescriptions = $_POST['window_descriptions']; 
+    $tableData = $_POST['table_data']; 
+    $windowResults = $_POST['window_results']; // Fetch window results data from POST
+
 	
 
     // Start of the HTML content:
@@ -195,27 +201,65 @@ private function calculate_pane($pane)
 
     // Iterate over windowData and format the output:
     foreach($windowData as $windowId => $window) {
-        $html .= "<h3>Window: {$windowId}</h3>";
-        $html .= "<p>Description: {$window['window_description']}</p>";
-        $html .= "<p>Total SQM: {$window['window_total']['sqm']}</p>";
-        $html .= "<p>Total Classic Price: {$window['window_total']['classic']}</p>";
-        $html .= "<p>Total Max Price: {$window['window_total']['max']}</p>";
-        $html .= "<p>Total Xcel Price: {$window['window_total']['xcel']}</p>";
+    $html .= "<h3>Window: {$windowId}</h3>";
+    $html .= "<p>Description: {$window['description']}</p>";  // Use 'description' instead of 'window_description'
+    
+    // Calculate totals for each window
+    $totalSqm = 0;
+    $totalClassicPrice = 0;
+    $totalMaxPrice = 0;
+    $totalXcelPrice = 0;
+    foreach($window['panes'] as $pane) {
+        $totalSqm += $pane['sqm'];
+        $totalClassicPrice += $pane['classic'];  // Assuming 'classic', 'max', and 'xcel' are properties of each pane
+        $totalMaxPrice += $pane['max'];
+        $totalXcelPrice += $pane['xcel'];
     }
 
+    $html .= "<p>Total SQM: {$totalSqm}</p>";
+    $html .= "<p>Total Classic Price: {$totalClassicPrice}</p>";
+    $html .= "<p>Total Max Price: {$totalMaxPrice}</p>";
+    $html .= "<p>Total Xcel Price: {$totalXcelPrice}</p>";
+}
+
+
     // Add table data to HTML content
-    if(!empty($tableData)) {
-        $html .= "<h3>Table Data:</h3>";
-        $html .= "<table>";
-        foreach($tableData as $row) {
-            $html .= "<tr>";
-            foreach($row as $cell) {
-                $html .= "<td>{$cell}</td>";
-            }
-            $html .= "</tr>";
-        }
-        $html .= "</table>";
+     if (!empty($windowResults)) {
+    $html .= "<h3>Window Results:</h3>";
+    $html .= "<table>";
+    foreach ($windowResults as $windowResult) {
+        $classic = $windowResult['window_total']['classic'] +
+                    $windowResult['window_total']['materials'] +
+                    $windowResult['window_total']['labour'] +
+                    $windowResult['window_total']['handles'] +
+                    $windowResult['window_total']['stay'] +
+                    $windowResult['window_total']['wheels'];
+
+        $max = $windowResult['window_total']['max'] +
+                $windowResult['window_total']['materials'] +
+                $windowResult['window_total']['labour'] +
+                $windowResult['window_total']['handles'] +
+                $windowResult['window_total']['stay'] +
+                $windowResult['window_total']['wheels'];
+
+        $xcel = $windowResult['window_total']['xcel'] +
+                $windowResult['window_total']['materials'] +
+                $windowResult['window_total']['labour'] +
+                $windowResult['window_total']['handles'] +
+                $windowResult['window_total']['stay'] +
+                $windowResult['window_total']['wheels'];
+
+        $html .= "<tr>";
+        $html .= "<td>{$windowResult['window_description']}</td>";
+        $html .= "<td>" . number_format($windowResult['window_total']['sqm'], 2) . "</td>";
+        $html .= "<td>$" . number_format($classic, 2) . "</td>";
+        $html .= "<td>$" . number_format($max, 2) . "</td>";
+        $html .= "<td>$" . number_format($xcel, 2) . "</td>";
+        $html .= "</tr>";
     }
+    $html .= "</table>";
+}
+
 
     // Print text using writeHTMLCell()
     $pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
