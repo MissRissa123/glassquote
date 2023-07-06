@@ -1,6 +1,7 @@
 jQuery(document).ready(function($) {
     let windowCount = 1;
     let paneCounts = {1: 1};
+	let windowResultsArray = [];
 
     $('#addWindow').click(function() {
         if (windowCount >= 40) {
@@ -153,107 +154,132 @@ jQuery(document).ready(function($) {
 		}
 
 		$('#calculate').click(function() {
-		let windowData = {};
-		let windowDescriptions = {}; // Create an object to store window descriptions
-		$('.window').each(function() {
-			let windowId = $(this).attr('id');
-			let windowDataObject = getWindowData($(this)); // Changed variable name to avoid conflict
-			windowData[windowId] = windowDataObject.panes;
-			windowDescriptions[windowId] = windowDataObject.description; // Store window description
-		});
-		$.ajax({
-			url: window_calculator_vars.ajax_url,
-			type: 'post',
-			data: {
-				action: 'calculate_window',
-				window_data: windowData,
-				window_descriptions: windowDescriptions // Send window descriptions to the server
-			},
-			success: function(result) {
-				let results = result.data;
-				// Clear the summary table before adding new data
-				$('#summaryTable tbody').empty();
-				for (let windowId in results) {
-					if (results.hasOwnProperty(windowId)) {
-						let windowResults = results[windowId];
-						// console.log('windowId:', windowId);
-						// console.log('windowResults for window', windowId, ':', windowResults);
-						// console.log('windowResults.window_total for window', windowId, ':', windowResults.window_total);
-						let paneCount = $('#' + windowId + ' .pane').length;
-						$('#' + windowId + ' .pane').each(function(index) {
-							if(windowResults && windowResults.pane_results && index < windowResults.pane_results.length){
-								let paneResult = windowResults.pane_results[index];
-								updatePaneResults($(this), paneResult);
-							}
-						});
-						if(windowResults && windowResults.window_total) {
-							// Remove the existing results table if it exists
-							$('#' + windowId + ' #resultsTableWindow').remove();
-							// Append the new results table
-							$('#' + windowId).append(createResultsTableWindow());
-							// Update the values in the new table
-							updateWindowTotals(windowId, windowResults.window_total);
-						}
-				
-						// Add a row to the summary table for each window
-						$('#summaryTable tbody').append(`
-							
-							<tr>
-							<td>${windowResults.window_description}</td>
-							<td>${windowResults.window_total.sqm.toFixed(2)}</td>
-							<td>$${(windowResults.window_total.classic + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
-							<td>$${(windowResults.window_total.max + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
-							<td>$${(windowResults.window_total.xcel + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
-							</tr>
-						`);
-					}
-				}
-			},
-			error: function(jqXHR, textStatus, errorThrown) {
-				console.log(textStatus, errorThrown);
-			}
-		});
-	});
-		function generatePDF() {
+			windowResultsArray = []; // Clear previous results
 			let windowData = {};
-			let windowDescriptions = {};
-			let tableData = {};  // Object to store table data
+			let windowDescriptions = {}; // Create an object to store window descriptions
 			$('.window').each(function() {
 				let windowId = $(this).attr('id');
-				let windowDataObject = getWindowData($(this));
+				let windowDataObject = getWindowData($(this)); // Changed variable name to avoid conflict
 				windowData[windowId] = windowDataObject.panes;
-				windowDescriptions[windowId] = windowDataObject.description;
-				tableData[windowId] = getTableDataForWindow(windowId);  // Get table data for this window
+				windowDescriptions[windowId] = windowDataObject.description; // Store window description
 			});
-
 			$.ajax({
 				url: window_calculator_vars.ajax_url,
 				type: 'post',
 				data: {
-					action: 'generate_pdf',
+					action: 'calculate_window',
 					window_data: windowData,
-					window_descriptions: windowDescriptions,
-					table_data: tableData  // Include table data in AJAX request
+					window_descriptions: windowDescriptions // Send window descriptions to the server
 				},
-				xhrFields: {
-					responseType: 'blob'
-				},
-				success: function(response, status, xhr) {
-					var blob = new Blob([response], {type: xhr.getResponseHeader('Content-Type')});
-					var link = document.createElement('a');
-					link.href = window.URL.createObjectURL(blob);
-					link.download = "window_calculation.pdf";
-					link.click();
+				success: function(result) {
+					let results = result.data;
+
+					// Clear the summary table before adding new data
+					$('#summaryTable tbody').empty();
+					for (let windowId in results) {
+						if (results.hasOwnProperty(windowId)) {
+							let windowResults = results[windowId];
+							let paneCount = $('#' + windowId + ' .pane').length;
+							$('#' + windowId + ' .pane').each(function(index) {
+								if(windowResults && windowResults.pane_results && index < windowResults.pane_results.length){
+									let paneResult = windowResults.pane_results[index];
+									updatePaneResults($(this), paneResult);
+								}
+							});
+							if(windowResults && windowResults.window_total) {
+								// Remove the existing results table if it exists
+								$('#' + windowId + ' #resultsTableWindow').remove();
+								// Append the new results table
+								$('#' + windowId).append(createResultsTableWindow());
+								// Update the values in the new table
+								updateWindowTotals(windowId, windowResults.window_total);
+							}
+
+							// Add a row to the summary table for each window
+							$('#summaryTable tbody').append(`
+								<tr>
+								<td>${windowResults.window_description}</td>
+								<td>${windowResults.window_total.sqm.toFixed(2)}</td>
+								<td>$${(windowResults.window_total.classic + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
+								<td>$${(windowResults.window_total.max + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
+								<td>$${(windowResults.window_total.xcel + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
+								</tr>
+							`);
+
+							// Store the windowResults to the array
+							windowResultsArray.push(windowResults);
+						}
+					}
 				},
 				error: function(jqXHR, textStatus, errorThrown) {
 					console.log(textStatus, errorThrown);
 				}
 			});
+			$('#summaryTable').after('<button id="generatePdf">Generate PDF</button>');
+		});
+		// Function to get the results data for pdf
+		function getResultsDataForPdf() {
+			return windowResultsArray;
 		}
+		
+		function generatePDF() {
+    let windowResultsData = getResultsDataForPdf(); // Call the function to get the results data
+    let windowData = {};
+    let windowDescriptions = {};
+    let tableData = [];
+
+    $('.window').each(function() {
+        let windowId = $(this).attr('id');
+        let tableDataForWindow = getTableDataForWindow(windowId);
+        tableData = tableData.concat(tableDataForWindow);
+    });
+
+    $.ajax({
+        url: window_calculator_vars.ajax_url,
+        type: 'post',
+        data: {
+            action: 'generate_pdf',
+            window_data: windowData,
+            window_descriptions: windowDescriptions,
+            table_data: tableData,
+            window_results: windowResultsData // Add this line to include the windowResultsData in the AJAX request
+        },
+		
+        xhrFields: {
+            responseType: 'blob'
+        },
+        success: function(response, status, xhr) {
+            var blob = new Blob([response], {type: xhr.getResponseHeader('Content-Type')});
+            var link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = "window_calculation.pdf";
+            link.click();
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            console.log(textStatus, errorThrown);
+        }
+    });
+}
+
 		function getTableDataForWindow(windowId) {
-				let windowElement = $('#' + windowId);
-				return getWindowData(windowElement);
+			let tableDataForWindow = [];
+			let windowElement = $('#' + windowId);
+			let windowData = getWindowData(windowElement);
+			for (let pane of windowData.panes) {
+				let rowData = [
+					pane.width,
+					pane.height,
+					pane.paneType,
+					pane.glassType,
+					pane.wheels,
+					pane.handles,
+					pane.sqm.toString()
+				];
+				tableDataForWindow.push(rowData);
 			}
+			return tableDataForWindow;
+		}
+
 
 		$('#generatePdf').click(function() {
 			generatePDF();
