@@ -6,6 +6,7 @@
     .pane {
         margin-bottom: 25px; 
     }
+	.window,
     .pane {
         margin-top: 25px;
     }
@@ -24,6 +25,7 @@
         width: 200px;
     }
 </style>
+
 <div id="pane11" class="pane">
     <h2>Pane 1</h2>
     <label for="width11">Width (in millimeters): </label>
@@ -48,6 +50,9 @@
     <select class="glassType" id="glassType11" name="glassType11">
         <option value="4cl//4cl">4cl//4cl</option>
         <option value="5cl//5cl">5cl//5cl</option>
+		<option value="4cltgh//4cl">4cltgh//4cl</option>
+		<option value="5cltgh//5cl">5cltgh//5cl</option>
+		<option value="4cltgh//4cltgh">4cltgh//4cltgh</option>
     </select><br>
     <div class="wheelsContainer" style="display:none;">
         <label for="wheels11">Wheels: </label>
@@ -81,7 +86,8 @@
         -->
     </tbody>
 </table>
-<button id="generatePdf">Generate PDF</button>
+
 </div>
+
 </body>
 </html>
