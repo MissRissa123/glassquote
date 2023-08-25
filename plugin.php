@@ -98,11 +98,16 @@ private function calculate_pane($pane)
         $handles = intval($pane['handles']);
         $handlesCost = $handles * $handlePrice;
 
+	$markupClassic = 1.50; // 50% markup
+    	$markupMax = 1.50;     // 50% markup
+   	$markupXcel = 1.50;   // 50% markup
+    	$markupSunxgrey = 1.65; // 65% markup
+
         return array(
             'sqm' => $sqm,
-            'classic' => $sqm * $glassPrices[$glassType]['classic'],
-            'max' => $sqm * $glassPrices[$glassType]['max'],
-            'xcel' => $sqm * $glassPrices[$glassType]['xcel'],
+       	 'classic' => $sqm * $glassPrices[$glassType]['classic'] * $markupClassic,
+        'max' => $sqm * $glassPrices[$glassType]['max'] * $markupMax,
+        'xcel' => ($glassType == 'sunxgrey') ? $sqm * $glassPrices[$glassType]['xcel'] * $markupSunxgrey : $sqm * $glassPrices[$glassType]['xcel'] * $markupXcel,
             'stay' => $stay,
             'wheels' => $wheelsCost,
             'handles' => $handlesCost,
