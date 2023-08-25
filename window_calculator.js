@@ -1,288 +1,309 @@
-jQuery(document).ready(function($) {
-    let windowCount = 1;
-    let paneCounts = {1: 1};
-	let windowResultsArray = [];
+<?php
+/*
+Plugin Name: Window Size Calculator
+Description: A plugin to calculate window square meters and cost based on window grades.
+Version: 1.0
+Author: Your Name
+Author URI: Your Website
+*/
+require_once('tcpdf/tcpdf.php'); // Add this line to the top of your plugin file to include TCPDF library
+class WindowSizeCalculator
+{
+    public function __construct()
+    {
+        $this->config = include 'config.php';
+        add_shortcode('window_calculator', array($this, 'window_calculator_form'));
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+        add_action('wp_ajax_calculate_window', array($this, 'calculate_window'));
+        add_action('wp_ajax_nopriv_calculate_window', array($this, 'calculate_window'));
+        add_action('wp_ajax_generate_pdf', array($this, 'generate_pdf')); // Add this line
+        add_action('wp_ajax_nopriv_generate_pdf', array($this, 'generate_pdf')); // And this line
+    }
+	
 
-    $('#addWindow').click(function() {
-        if (windowCount >= 40) {
-            alert('Maximum number of windows is 40');
-            return;
+    public function window_calculator_form()
+	{
+		ob_start();
+		?>
+		<div>
+		<label for="first_name">First Name:</label><br>
+		<input type="text" id="first_name" name="first_name"><br>
+
+		<label for="last_name">Last Name:</label><br>
+		<input type="text" id="last_name" name="last_name"><br>
+
+		<label for="address_line_1">Address Line 1:</label><br>
+		<input type="text" id="address_line_1" name="address_line_1"><br>
+
+		<label for="address_line_2">Address Line 2:</label><br>
+		<input type="text" id="address_line_2" name="address_line_2"><br>
+		</div>
+		<div id="window-calculator">
+			<div id="window1" class="window">
+				<h2>Window 1</h2>
+				<label for="windowDescription1">Window Description: </label>
+				<input type="text" id="windowDescription1" name="windowDescription1"><br>
+				<?php include 'pane_form.php'; ?>
+				<button class="addPane" type="button">Add Pane</button>
+			</div>
+			<button id="addWindow" type="button">Add Window</button>
+			<button id="calculate" type="button">Calculate</button>
+		</div>
+		<div id="totalResult"></div>
+		<table id="summaryTable">
+			<thead>
+				<tr>
+					<th>Window Description</th>
+					<th>Total SQM</th>
+					<th>Total Classic Price</th>
+					<th>Total Max Price</th>
+					<th>Total Xcel Price</th>
+				</tr>
+			</thead>
+			<tbody>
+				<!-- Summary data will go here -->
+			</tbody>
+		</table>
+		<button id="generatePdf">Generate PDF</button>
+		<?php
+		return ob_get_clean();
+	}
+
+
+    public function enqueue_scripts()
+    {
+        wp_enqueue_script('window_calculator', plugins_url('window_calculator.js', __FILE__), array('jquery'), '1.0', true);
+        wp_localize_script('window_calculator', 'window_calculator_vars', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+        ));
+    }
+
+private function calculate_pane($pane)
+    {
+        $glassPrices = $this->config['glassPrices'];
+        $wheelsPrice = $this->config['wheelsPrice'];
+        $stayPrices = $this->config['stayPrices'];
+        $handlePrice = $this->config['handlePrice'];
+        $materialPricePerSqm = $this->config['materialPricePerSqm'];
+        $labourPricePerSqm = $this->config['labourPricePerSqm'];
+
+        $width = $pane['width'] / 1000;
+        $height = $pane['height'] / 1000;
+        $glassType = $pane['glassType'];
+        $wheels = $pane['wheels'];
+        $paneType = $pane['paneType'];
+        $sqm = $width * $height;
+        $stay = isset($stayPrices[$paneType]) ? $stayPrices[$paneType] : 0;
+        $wheelsCost = $wheels == 'yes' ? $wheelsPrice : 0;
+        $handles = intval($pane['handles']);
+        $handlesCost = $handles * $handlePrice;
+
+        return array(
+            'sqm' => $sqm,
+            'classic' => $sqm * $glassPrices[$glassType]['classic'],
+            'max' => $sqm * $glassPrices[$glassType]['max'],
+            'xcel' => $sqm * $glassPrices[$glassType]['xcel'],
+            'stay' => $stay,
+            'wheels' => $wheelsCost,
+            'handles' => $handlesCost,
+            'materials' => $sqm * $materialPricePerSqm,
+            'labour' => $sqm * $labourPricePerSqm
+        );
+    }
+
+    private function calculate_window_total($paneResults)
+    {
+        $windowTotalResults = array(
+            'sqm' => 0,
+            'classic' => 0,
+            'max' => 0,
+            'xcel' => 0,
+            'stay' => 0,
+            'wheels' => 0,
+            'handles' => 0,
+            'materials' => 0,
+            'labour' => 0
+        );
+
+        foreach ($paneResults as $paneResult) {
+            $windowTotalResults['sqm'] += $paneResult['sqm'];
+            $windowTotalResults['classic'] += $paneResult['classic'];
+            $windowTotalResults['max'] += $paneResult['max'];
+            $windowTotalResults['xcel'] += $paneResult['xcel'];
+            $windowTotalResults['stay'] += $paneResult['stay'];
+            $windowTotalResults['wheels'] += $paneResult['wheels'];
+            $windowTotalResults['handles'] += $paneResult['handles'];
+            $windowTotalResults['materials'] += $paneResult['materials'];
+            $windowTotalResults['labour'] += $paneResult['labour'];
         }
-        windowCount++;
-        paneCounts[windowCount] = 1;
-		let newWindow = $('.window:first').clone().attr('id', 'window' + windowCount);
-		let newWindowDescription = newWindow.find('#windowDescription1').attr('id', 'windowDescription' + windowCount);
-		newWindowDescription.val(''); // Reset the window description field
 
-        newWindow.find('h2').text('Window ' + windowCount);
-        newWindow.find('.pane:not(:first)').remove();
-        let newPane = newWindow.find('.pane:first').attr('id', 'pane' + windowCount + '1');
-        newPane.find('h2').text('Pane 1');
-        newPane.append('<button class="addPane" type="button">Add Pane</button>');
-        newWindow.appendTo('#window-calculator');
+        return $windowTotalResults;
+    }
 
-        // Reset the form fields in the new window
-        newPane.find('input').val('');
-        newPane.find('select').prop('selectedIndex',0); // Reset select box
-        newPane.find('.pane-result').html(''); // Clear the result fields
-        newPane.find('.wheelsContainer').hide(); // Hide wheels by default
-    });
-
-    $(document).on('click', '.addPane', function() {
-        let parentWindow = $(this).closest('.window');
-        let parentWindowId = parseInt(parentWindow.attr('id').replace('window', ''));
-        if (paneCounts[parentWindowId] >= 12) {
-            alert('Maximum number of panes for each window is 12');
-            return;
-        }
-        paneCounts[parentWindowId]++;
-        let newPane = $('.pane:first').clone().attr('id', 'pane' + parentWindowId + paneCounts[parentWindowId]);
-        newPane.find('h2').text('Pane ' + paneCounts[parentWindowId]);
-        $(this).remove();
-        newPane.append('<button class="addPane" type="button">Add Pane</button>');
-        newPane.appendTo(parentWindow);
-
-        // Reset the form fields in the new pane
-        newPane.find('input').val('');
-        newPane.find('select').prop('selectedIndex',0); // Reset select box
-        newPane.find('.pane-result').html(''); // Clear the result fields
-        newPane.find('.wheelsContainer').hide(); // Hide wheels by default
-    });
-
-    $(document).on('change', '.paneType', function() {
-        let paneType = $(this).val();
-        let $wheelsContainer = $(this).closest('.pane').find('.wheelsContainer');
-        let $wheelsSelect = $wheelsContainer.find('.wheels');
-
-        if (["Sliding Door", "Sliding Door Sash", "Sliding Door Fixed", "Stacker Door", "Stacker Door Sash", "Stacker Door Fixed"].includes(paneType)) {
-            $wheelsContainer.show();
-        } else {
-            $wheelsSelect.val('no'); // Reset wheels to "no"
-            $wheelsContainer.hide();
-        }
-    });
+	public function calculate_window()
+		{
+		// Fetch data from POST
+		$windowData = $_POST['window_data'];
+		$windowDescriptions = $_POST['window_descriptions']; // Fetch window descriptions from POST
+		$tableData = $_POST['table_data']; // Fetch table data from POST
+		$windowResultsArray = $_POST['window_results']; // Fetch windowResultsArray from POST
+		error_log(print_r($tableData, true)); // Log the table data
+		error_log(print_r($windowResultsArray, true)); // Log the windowResultsArray
 
 
-	function getPaneData(pane) {
-			let paneId = pane.attr('id');
-			let width = $('#' + paneId + ' .width').val();
-			let height = $('#' + paneId + ' .height').val();
-			let paneType = $('#' + paneId + ' .paneType').val();
-			let glassType = $('#' + paneId + ' .glassType').val();
-			let wheels = $('#' + paneId + ' .wheels').val();
-			let handles = $('#' + paneId + ' .handles').val();
-			let sqm = width / 1000 * height / 1000;
-			return {width: width, height: height, paneType: paneType, glassType: glassType, wheels: wheels, handles: handles, sqm: sqm};
-		}
+		foreach ($windowData as $windowId => $paneData) {
+			$paneResults = array();
 
-		function getWindowData(window) {
-			let windowId = window.attr('id');
-			let windowDescription = window.find('#windowDescription' + windowId.replace('window', '')).val(); // Get window description
-			let paneData = [];
-			let windowSqmTotal = 0;
-			window.find('.pane').each(function() {
-				let pane = getPaneData($(this));
-				windowSqmTotal += pane.sqm;
-				paneData.push(pane);
-			});
-			$('#' + windowId + ' .total-sqm').html('Total SQM: ' + windowSqmTotal.toFixed(2));
-			return {description: windowDescription, panes: paneData}; // Include window description here
-		}
+			foreach ($paneData as $pane) {
+				$paneResults[] = $this->calculate_pane($pane);
+			}
 
-
-		function updatePaneResults(pane, paneResult) {
-			pane.find('.pane-result').empty().append(
-				'<tr>'+
-				'<td>'+paneResult.sqm.toFixed(2)+'</td>'+
-				'<td>$'+paneResult.classic.toFixed(2)+'</td>'+
-				'<td>$'+paneResult.max.toFixed(2)+'</td>'+
-				'<td>$'+paneResult.xcel.toFixed(2)+'</td>'+
-				'<td>$'+paneResult.stay.toFixed(2)+'</td>'+
-				'<td>$'+paneResult.wheels.toFixed(2)+'</td>'+
-				'<td>$'+paneResult.handles.toFixed(2)+'</td>'+
-				'<td>$'+(paneResult.sqm * 85).toFixed(2)+'</td>'+
-				'<td>$'+paneResult.labour.toFixed(2)+'</td>'+
-				'</tr>'
+			$results[$windowId] = array(
+				'pane_results' => $paneResults, 
+				'window_total' => $this->calculate_window_total($paneResults),
+				'window_description' => $windowDescriptions[$windowId] // Add window description here
 			);
 		}
-		function updateWindowTotals(windowId, windowTotal) {
-			if (windowTotal) {
-				$('#' + windowId + ' .total-sqm').html(windowTotal.sqm.toFixed(2));
-				$('#' + windowId + ' .total-classic').html('$' + windowTotal.classic.toFixed(2));
-				$('#' + windowId + ' .total-max').html('$' + windowTotal.max.toFixed(2));
-				$('#' + windowId + ' .total-xcel').html('$' + windowTotal.xcel.toFixed(2));
-				$('#' + windowId + ' .total-stay').html('$' + windowTotal.stay.toFixed(2));
-				$('#' + windowId + ' .total-wheels').html('$' + windowTotal.wheels.toFixed(2));
-				$('#' + windowId + ' .total-handles').html('$' + windowTotal.handles.toFixed(2));
-				$('#' + windowId + ' .total-materials').html('$' + windowTotal.materials.toFixed(2));
-				$('#' + windowId + ' .total-labour').html('$' + windowTotal.labour.toFixed(2));
-			} else {
-				console.log('windowTotal is undefined for window', windowId);
-			}
-		}				
-		function createResultsTableWindow() {
-			return `
-				<table id="resultsTableWindow">
-					<thead>
-						<tr>
-							<th>Total SQM</th>
-							<th>Total Classic Price</th>
-							<th>Total Max Price</th>
-							<th>Total Xcel Price</th>
-							<th>Total Stay Price</th>
-							<th>Total Wheels</th>
-							<th>Total Handles</th>
-							<th>Total Materials</th>
-							<th>Total Labour</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td class="total-sqm"></td>
-							<td class="total-classic"></td>
-							<td class="total-max"></td>
-							<td class="total-xcel"></td>
-							<td class="total-stay"></td>
-							<td class="total-wheels"></td>
-							<td class="total-handles"></td>
-							<td class="total-materials"></td>
-							<td class="total-labour"></td>
-						</tr>
-					</tbody>
-				</table>
-			`;
+
+		wp_send_json_success($results);
+	}
+	public function generate_pdf()
+{
+    // create new PDF document
+    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+    // set document information
+    $pdf->SetAuthor('Dan Sutherland');
+    $pdf->SetTitle('Window Size Calculation Results');
+    $pdf->SetSubject('TCPDF Tutorial');
+    $pdf->SetKeywords('TCPDF, PDF, example, test, guide');
+
+    // set default header data
+    $pdf->SetHeaderData('', 0, 'Modglass', 'https://modglass.co.nz');
+
+    // set header and footer fonts
+    $pdf->setHeaderFont(Array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
+    $pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
+
+    // set default monospaced font
+    $pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+
+    // set margins
+    $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
+    $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
+    $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
+
+    // set auto page breaks
+    $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+
+    // set image scale factor
+    $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+
+    // add a page
+    $pdf->AddPage();
+
+    // Fetch data from POST
+	$firstName = $_POST['first_name'];
+	$lastName = $_POST['last_name'];
+	$addressLine1 = $_POST['address_line_1'];
+	$addressLine2 = $_POST['address_line_2'];
+	$windowData = $_POST['window_data'];
+	$windowDescriptions = $_POST['window_descriptions']; 
+	$tableData = $_POST['table_data']; 
+	$windowResults = $_POST['window_results']; // Fetch window results data from POST
+	
+	// Concatenate firstName and lastName with a space in between
+	$fullName = $firstName . ' ' . $lastName;
+
+	// Start of the HTML content:
+	$html .= "<p>{$fullName}</p>";
+	$html .= "<p>{$addressLine1}</p>";
+	$html .= "<p>{$addressLine2}</p>";
+	$html .= "<h2>Double Glazing Window Quote</h2>";
+	$html .= "<p>Modglass Double Glazing thanks you for the opportunity to provide you with your Modglass double glazing quotation. This quotation is categorized by room and double glazing solutions, allowing you to select the options that best fit your needs.</p>";
+	$html .= "<p>Our state-of-the-art production lines manufacture Metro's double glazed units, adhering to established quality standards. These units undergo regular and independent testing by BRANZ for durability based on EN1279.</p>";
+	$html .= "<p>Our team of highly trained and skilled glaziers ensures a seamless and prompt installation process, resulting in a high-quality finished product. The key advantages of our Low E double glazed units include: Download our brochure by clicking this link.</p>";
+	$html .= "<p>We are confident that you will enjoy the benefits of our double glazing. If you have any further questions, please feel free to contact us or visit our Modglass website to learn about the positive experiences of other satisfied customers. Please refer to the following page for your quote options. We eagerly await your favorable response. Upon acceptance, a 25% deposit will be required to procure materials for your home.</p>";
+
+    // Iterate over windowData and format the output:
+		foreach($windowData as $windowId => $window) {
+		$html .= "<h3>Window: {$windowId}</h3>";
+		$html .= "<p>Description: {$window['description']}</p>";  // Use 'description' instead of 'window_description'
+		
+		// Calculate totals for each window
+		$totalSqm = 0;
+		$totalClassicPrice = 0;
+		$totalMaxPrice = 0;
+		$totalXcelPrice = 0;
+		foreach($window['panes'] as $pane) {
+			$totalSqm += $pane['sqm'];
+			$totalClassicPrice += $pane['classic'];  // Assuming 'classic', 'max', and 'xcel' are properties of each pane
+			$totalMaxPrice += $pane['max'];
+			$totalXcelPrice += $pane['xcel'];
 		}
 
-		$('#calculate').click(function() {
-			windowResultsArray = []; // Clear previous results
-			let windowData = {};
-			let windowDescriptions = {}; // Create an object to store window descriptions
-			$('.window').each(function() {
-				let windowId = $(this).attr('id');
-				let windowDataObject = getWindowData($(this)); // Changed variable name to avoid conflict
-				windowData[windowId] = windowDataObject.panes;
-				windowDescriptions[windowId] = windowDataObject.description; // Store window description
-			});
-			$.ajax({
-				url: window_calculator_vars.ajax_url,
-				type: 'post',
-				data: {
-					action: 'calculate_window',
-					window_data: windowData,
-					window_descriptions: windowDescriptions // Send window descriptions to the server
-				},
-				success: function(result) {
-					let results = result.data;
+		$html .= "<p>Total SQM: {$totalSqm}</p>";
+		$html .= "<p>Total Classic Price: {$totalClassicPrice}</p>";
+		$html .= "<p>Total Max Price: {$totalMaxPrice}</p>";
+		$html .= "<p>Total Xcel Price: {$totalXcelPrice}</p>";
+	}
 
-					// Clear the summary table before adding new data
-					$('#summaryTable tbody').empty();
-					for (let windowId in results) {
-						if (results.hasOwnProperty(windowId)) {
-							let windowResults = results[windowId];
-							let paneCount = $('#' + windowId + ' .pane').length;
-							$('#' + windowId + ' .pane').each(function(index) {
-								if(windowResults && windowResults.pane_results && index < windowResults.pane_results.length){
-									let paneResult = windowResults.pane_results[index];
-									updatePaneResults($(this), paneResult);
-								}
-							});
-							if(windowResults && windowResults.window_total) {
-								// Remove the existing results table if it exists
-								$('#' + windowId + ' #resultsTableWindow').remove();
-								// Append the new results table
-								$('#' + windowId).append(createResultsTableWindow());
-								// Update the values in the new table
-								updateWindowTotals(windowId, windowResults.window_total);
-							}
 
-							// Add a row to the summary table for each window
-							$('#summaryTable tbody').append(`
-								<tr>
-								<td>${windowResults.window_description}</td>
-								<td>${windowResults.window_total.sqm.toFixed(2)}</td>
-								<td>$${(windowResults.window_total.classic + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
-								<td>$${(windowResults.window_total.max + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
-								<td>$${(windowResults.window_total.xcel + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
-								</tr>
-							`);
+    // Add table data to HTML content
+     if (!empty($windowResults)) {
+    $html .= "<h3>Window Results:</h3>";
+    $html .= "<table>";
+    $html .= "<tr>";
+	$html .= "<th><strong>Window Description</strong></th>";
+	$html .= "<th><strong>SQM</strong></th>";
+	$html .= "<th><strong>Classic Price</strong></th>";
+	$html .= "<th><strong>Max Price</strong></th>";
+	$html .= "<th><strong>Xcel Price</strong></th>";
+	$html .= "</tr>";
+    foreach ($windowResults as $windowResult) {
+        $classic = $windowResult['window_total']['classic'] +
+                    $windowResult['window_total']['materials'] +
+                    $windowResult['window_total']['labour'] +
+                    $windowResult['window_total']['handles'] +
+                    $windowResult['window_total']['stay'] +
+                    $windowResult['window_total']['wheels'];
 
-							// Store the windowResults to the array
-							windowResultsArray.push(windowResults);
-						}
-					}
-				},
-				error: function(jqXHR, textStatus, errorThrown) {
-					console.log(textStatus, errorThrown);
-				}
-			});
-			$('#summaryTable').after('<button id="generatePdf">Generate PDF</button>');
-		});
-		// Function to get the results data for pdf
-		function getResultsDataForPdf() {
-			return windowResultsArray;
-		}
-		
-		function generatePDF() {
-    let windowResultsData = getResultsDataForPdf(); // Call the function to get the results data
-    let windowData = {};
-    let windowDescriptions = {};
-    let tableData = [];
+        $max = $windowResult['window_total']['max'] +
+                $windowResult['window_total']['materials'] +
+                $windowResult['window_total']['labour'] +
+                $windowResult['window_total']['handles'] +
+                $windowResult['window_total']['stay'] +
+                $windowResult['window_total']['wheels'];
 
-    $('.window').each(function() {
-        let windowId = $(this).attr('id');
-        let tableDataForWindow = getTableDataForWindow(windowId);
-        tableData = tableData.concat(tableDataForWindow);
-    });
+        $xcel = $windowResult['window_total']['xcel'] +
+                $windowResult['window_total']['materials'] +
+                $windowResult['window_total']['labour'] +
+                $windowResult['window_total']['handles'] +
+                $windowResult['window_total']['stay'] +
+                $windowResult['window_total']['wheels'];
 
-    $.ajax({
-        url: window_calculator_vars.ajax_url,
-        type: 'post',
-        data: {
-            action: 'generate_pdf',
-            window_data: windowData,
-            window_descriptions: windowDescriptions,
-            table_data: tableData,
-            window_results: windowResultsData // Add this line to include the windowResultsData in the AJAX request
-        },
-		
-        xhrFields: {
-            responseType: 'blob'
-        },
-        success: function(response, status, xhr) {
-            var blob = new Blob([response], {type: xhr.getResponseHeader('Content-Type')});
-            var link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.download = "window_calculation.pdf";
-            link.click();
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            console.log(textStatus, errorThrown);
-        }
-    });
+        $html .= "<tr>";
+        $html .= "<td>{$windowResult['window_description']}</td>";
+        $html .= "<td>" . number_format($windowResult['window_total']['sqm'], 2) . "</td>";
+        $html .= "<td>$" . number_format($classic, 2) . "</td>";
+        $html .= "<td>$" . number_format($max, 2) . "</td>";
+        $html .= "<td>$" . number_format($xcel, 2) . "</td>";
+        $html .= "</tr>";
+    }
+    $html .= "</table>";
 }
 
-		function getTableDataForWindow(windowId) {
-			let tableDataForWindow = [];
-			let windowElement = $('#' + windowId);
-			let windowData = getWindowData(windowElement);
-			for (let pane of windowData.panes) {
-				let rowData = [
-					pane.width,
-					pane.height,
-					pane.paneType,
-					pane.glassType,
-					pane.wheels,
-					pane.handles,
-					pane.sqm.toString()
-				];
-				tableDataForWindow.push(rowData);
-			}
-			return tableDataForWindow;
-		}
 
 
-		$('#generatePdf').click(function() {
-			generatePDF();
-		});
+    // Print text using writeHTMLCell()
+    $pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
 
-});
+    // Close and output PDF document
+    $output = $pdf->Output('Window_Calculation_Results.pdf', 'I'); // This will output the PDF to the browser
+    echo $output;
+    die();
+}
+
+}
+
+new WindowSizeCalculator();
