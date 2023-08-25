@@ -22,52 +22,65 @@ class WindowSizeCalculator
 	
 
     public function window_calculator_form()
-	{
-		ob_start();
-		?>
-		<div>
-		<label for="first_name">First Name:</label><br>
-		<input type="text" id="first_name" name="first_name"><br>
+{
+    ob_start();
+    ?>
+    <style>
+        #buttonContainer {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px; /* Space between the buttons */
+        }
+    </style>
+    <div>
+        <label for="first_name">First Name:</label><br>
+        <input type="text" id="first_name" name="first_name"><br>
 
-		<label for="last_name">Last Name:</label><br>
-		<input type="text" id="last_name" name="last_name"><br>
+        <label for="last_name">Last Name:</label><br>
+        <input type="text" id="last_name" name="last_name"><br>
 
-		<label for="address_line_1">Address Line 1:</label><br>
-		<input type="text" id="address_line_1" name="address_line_1"><br>
+        <label for="address_line_1">Address Line 1:</label><br>
+        <input type="text" id="address_line_1" name="address_line_1"><br>
 
-		<label for="address_line_2">Address Line 2:</label><br>
-		<input type="text" id="address_line_2" name="address_line_2"><br>
-		</div>
-		<div id="window-calculator">
-			<div id="window1" class="window">
-				<h2>Window 1</h2>
-				<label for="windowDescription1">Window Description: </label>
-				<input type="text" id="windowDescription1" name="windowDescription1"><br>
-				<?php include 'pane_form.php'; ?>
-				<button class="addPane" type="button">Add Pane</button>
-			</div>
-			<button id="addWindow" type="button">Add Window</button>
-			<button id="calculate" type="button">Calculate</button>
-		</div>
-		<div id="totalResult"></div>
-		<table id="summaryTable">
-			<thead>
-				<tr>
-					<th>Window Description</th>
-					<th>Total SQM</th>
-					<th>Total Classic Price</th>
-					<th>Total Max Price</th>
-					<th>Total Xcel Price</th>
-				</tr>
-			</thead>
-			<tbody>
-				<!-- Summary data will go here -->
-			</tbody>
-		</table>
-		<button id="generatePdf">Generate PDF</button>
-		<?php
-		return ob_get_clean();
-	}
+        <label for="address_line_2">Address Line 2:</label><br>
+        <input type="text" id="address_line_2" name="address_line_2"><br>
+    </div>
+    <div id="window-calculator">
+        <div id="window1" class="window">
+            <h2>Window 1</h2>
+            <label for="windowDescription1">Window Description: </label>
+            <input type="text" id="windowDescription1" name="windowDescription1"><br>
+            <?php include 'pane_form.php'; ?>
+            <button class="addPane" type="button">Add Pane</button>
+        </div>
+        <button id="addWindow" type="button">Add Window</button>
+    </div>
+    <div id="totalResult"></div>
+    <table id="summaryTable">
+        <thead>
+            <tr>
+                <th>Window Description</th>
+                <th>Total SQM</th>
+                <th>Total Classic Price</th>
+                <th>Total Max Price</th>
+                <th>Total Xcel Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Summary data will go here -->
+        </tbody>
+    </table>
+    <div id="buttonContainer">
+        <button id="calculate" type="button">Calculate</button>
+        <button id="generatePdf">Generate PDF</button>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
 
 
     public function enqueue_scripts()
@@ -98,16 +111,16 @@ private function calculate_pane($pane)
         $handles = intval($pane['handles']);
         $handlesCost = $handles * $handlePrice;
 
-	$markupClassic = 1.50; // 50% markup
+		$markupClassic = 1.50; // 50% markup
     	$markupMax = 1.50;     // 50% markup
-   	$markupXcel = 1.50;   // 50% markup
+		$markupXcel = 1.50;   // 50% markup
     	$markupSunxgrey = 1.65; // 65% markup
 
         return array(
             'sqm' => $sqm,
-       	 'classic' => $sqm * $glassPrices[$glassType]['classic'] * $markupClassic,
-        'max' => $sqm * $glassPrices[$glassType]['max'] * $markupMax,
-        'xcel' => ($glassType == 'sunxgrey') ? $sqm * $glassPrices[$glassType]['xcel'] * $markupSunxgrey : $sqm * $glassPrices[$glassType]['xcel'] * $markupXcel,
+			'classic' => $sqm * $glassPrices[$glassType]['classic'] * $markupClassic,
+			'max' => $sqm * $glassPrices[$glassType]['max'] * $markupMax,
+			'xcel' => ($glassType == 'sunxgrey') ? $sqm * $glassPrices[$glassType]['xcel'] * $markupSunxgrey : $sqm * $glassPrices[$glassType]['xcel'] * $markupXcel,
             'stay' => $stay,
             'wheels' => $wheelsCost,
             'handles' => $handlesCost,
