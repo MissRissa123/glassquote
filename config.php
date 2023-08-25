@@ -1,11 +1,11 @@
 <?php
 return [
     'glassPrices' => [
-        '4cl//4cl' => ['classic' => 113.03, 'max' => 170.78, 'xcel' => 178.88],
-        '5cl//5cl' => ['classic' => 123.98, 'max' => 182.36, 'xcel' => 200.93],
-		'4cltgh//4cl' => ['classic' => 180.00, 'max' => 243.15, 'xcel' => 260.33],
-		'5cltgh//5cl' => ['classic' => 187.53, 'max' => 250.38, 'xcel' => 275.03],
-		'4cltgh//4cltgh' => ['classic' => 247.01, 'max' => 299.60, 'xcel' => 321.00],
+        '4cl//4cl' => ['classic' => 75.35, 'max' => 113.85, 'xcel' => 119.25],
+        '5cl//5cl' => ['classic' => 82.65, 'max' => 121.57, 'xcel' => 133.95],
+		'4cltgh//4cl' => ['classic' => 120, 'max' => 162.1, 'xcel' => 173.55],
+		'5cltgh//5cl' => ['classic' => 125.02, 'max' => 166.92, 'xcel' => 183.38],
+		'4cltgh//4cltgh' => ['classic' => 164.67, 'max' => 199.73, 'xcel' => 214],
 	],
     'wheelsPrice' => 20,
     'stayPrices' => [
