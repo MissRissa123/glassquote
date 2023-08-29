@@ -91,12 +91,17 @@ jQuery(document).ready(function($) {
 
 
 		function updatePaneResults(pane, paneResult) {
+			if (!paneResult || paneResult.sqm === undefined) {
+			console.error("Invalid paneResult data:", paneResult);
+			return;
+			}
 			pane.find('.pane-result').empty().append(
 				'<tr>'+
 				'<td>'+paneResult.sqm.toFixed(2)+'</td>'+
 				'<td>$'+paneResult.classic.toFixed(2)+'</td>'+
 				'<td>$'+paneResult.max.toFixed(2)+'</td>'+
 				'<td>$'+paneResult.xcel.toFixed(2)+'</td>'+
+				'<td>$'+paneResult.sunxgrey.toFixed(2)+'</td>'+
 				'<td>$'+paneResult.stay.toFixed(2)+'</td>'+
 				'<td>$'+paneResult.wheels.toFixed(2)+'</td>'+
 				'<td>$'+paneResult.handles.toFixed(2)+'</td>'+
@@ -111,6 +116,7 @@ jQuery(document).ready(function($) {
 				$('#' + windowId + ' .total-classic').html('$' + windowTotal.classic.toFixed(2));
 				$('#' + windowId + ' .total-max').html('$' + windowTotal.max.toFixed(2));
 				$('#' + windowId + ' .total-xcel').html('$' + windowTotal.xcel.toFixed(2));
+				$('#' + windowId + ' .total-sunx-grey').html('$' + windowTotal.sunxgrey.toFixed(2));
 				$('#' + windowId + ' .total-stay').html('$' + windowTotal.stay.toFixed(2));
 				$('#' + windowId + ' .total-wheels').html('$' + windowTotal.wheels.toFixed(2));
 				$('#' + windowId + ' .total-handles').html('$' + windowTotal.handles.toFixed(2));
@@ -129,6 +135,7 @@ jQuery(document).ready(function($) {
 							<th>Total Classic Price</th>
 							<th>Total Max Price</th>
 							<th>Total Xcel Price</th>
+							<th>Total SunX Grey Price</th>
 							<th>Total Stay Price</th>
 							<th>Total Wheels</th>
 							<th>Total Handles</th>
@@ -142,6 +149,7 @@ jQuery(document).ready(function($) {
 							<td class="total-classic"></td>
 							<td class="total-max"></td>
 							<td class="total-xcel"></td>
+							<td class="total-sunx-grey"></td>
 							<td class="total-stay"></td>
 							<td class="total-wheels"></td>
 							<td class="total-handles"></td>
@@ -158,7 +166,7 @@ jQuery(document).ready(function($) {
 			let windowData = {};
 			let windowDescriptions = {}; // Create an object to store window descriptions
 			let firstName = $('#first_name').val();
-			let lastName = $('#last_name').val();
+			let lastName = $('#last_name').val();			
 			let addressLine1 = $('#address_line_1').val();
 			let addressLine2 = $('#address_line_2').val();
 			$('.window').each(function() {
@@ -207,6 +215,7 @@ jQuery(document).ready(function($) {
 								<td>$${(windowResults.window_total.classic + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
 								<td>$${(windowResults.window_total.max + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
 								<td>$${(windowResults.window_total.xcel + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
+								<td>$${(windowResults.window_total.sunxgrey + windowResults.window_total.materials + windowResults.window_total.labour + windowResults.window_total.handles + windowResults.window_total.stay + windowResults.window_total.wheels).toFixed(2)}</td>
 								</tr>
 							`);
 
@@ -233,8 +242,12 @@ jQuery(document).ready(function($) {
 			let tableData = [];
 			let firstName = $('#first_name').val();
 			let lastName = $('#last_name').val();
+			let currentDate = new Date().toISOString().slice(0,10); // Format: YYYY-MM-DD
+			let filename = lastName + " " + currentDate + ".pdf";
 			let addressLine1 = $('#address_line_1').val();
 			let addressLine2 = $('#address_line_2').val();
+			let additionalNotes = $('#additional_notes').val();
+
 
 			$('.window').each(function() {
 				let windowId = $(this).attr('id');
@@ -254,7 +267,8 @@ jQuery(document).ready(function($) {
 					window_data: windowData,
 					window_descriptions: windowDescriptions,
 					table_data: tableData,
-					window_results: windowResultsData // Add this line to include the windowResultsData in the AJAX request
+					window_results: windowResultsData, // Add this line to include the windowResultsData in the AJAX request
+					additional_notes: additionalNotes,
 				},
 				
 				xhrFields: {
@@ -264,7 +278,7 @@ jQuery(document).ready(function($) {
 					var blob = new Blob([response], {type: xhr.getResponseHeader('Content-Type')});
 					var link = document.createElement('a');
 					link.href = window.URL.createObjectURL(blob);
-					link.download = "window_calculation.pdf";
+					link.download = filename;  // Use the new filename
 					link.click();
 				},
 				error: function(jqXHR, textStatus, errorThrown) {
@@ -272,6 +286,38 @@ jQuery(document).ready(function($) {
 				}
 			});
 		}
+		function generateSpecSheetPDF() {
+			let firstName = $('#first_name').val();
+			let lastName = $('#last_name').val();
+			let currentDate = new Date().toISOString().slice(0,10); // Format: YYYY-MM-DD
+			let filename = lastName + " " + currentDate + "-SpecSheet.pdf";
+
+			let data = {
+				action: 'generate_spec_sheet_pdf',
+				first_name: firstName,
+				last_name: lastName
+			};
+
+			$.ajax({
+				url: window_calculator_vars.ajax_url,
+				type: 'post',
+				data: data,
+				xhrFields: {
+					responseType: 'blob'
+				},
+				success: function(response, status, xhr) {
+					var blob = new Blob([response], {type: xhr.getResponseHeader('Content-Type')});
+					var link = document.createElement('a');
+					link.href = window.URL.createObjectURL(blob);
+					link.download = filename;
+					link.click();
+				},
+				error: function(jqXHR, textStatus, errorThrown) {
+					console.log(textStatus, errorThrown);
+				}
+			});
+		}
+
 
 		function getTableDataForWindow(windowId) {
 			let tableDataForWindow = [];
@@ -296,5 +342,8 @@ jQuery(document).ready(function($) {
 		$('#generatePdf').click(function() {
 			generatePDF();
 		});
+		$('#generateSpecSheetPdf').on('click', function() {
+        generateSpecSheetPDF();
+    });
 
 });
