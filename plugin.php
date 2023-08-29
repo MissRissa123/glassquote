@@ -18,6 +18,8 @@ class WindowSizeCalculator
         add_action('wp_ajax_nopriv_calculate_window', array($this, 'calculate_window'));
         add_action('wp_ajax_generate_pdf', array($this, 'generate_pdf')); // Add this line
         add_action('wp_ajax_nopriv_generate_pdf', array($this, 'generate_pdf')); // And this line
+		add_action('wp_ajax_generate_spec_sheet_pdf', array($this, 'generate_spec_sheet_pdf'));
+		add_action('wp_ajax_nopriv_generate_spec_sheet_pdf', array($this, 'generate_spec_sheet_pdf'));
     }
 	
 
@@ -67,15 +69,32 @@ class WindowSizeCalculator
                 <th>Total Classic Price</th>
                 <th>Total Max Price</th>
                 <th>Total Xcel Price</th>
+				<th>Total SunX Grey Price</th>
             </tr>
         </thead>
         <tbody>
             <!-- Summary data will go here -->
         </tbody>
     </table>
+	<label for="additional_notes">Additional Notes:</label><br>
+	<textarea name="additional_notes" id="additional_notes" rows="20" cols="50" style="width: 100%; max-width: 100%;">
+• Colour Variation: There will be a colour variation between your new retro-fitted aluminium and the older existing aluminium. Modglass retrofit will remove a single bead on the second measure to be colour matched by local experts.
+• Hardware: Colour matched hardware can be ordered if required at extra cost.
+• Glass Supplied: All glass installed by Modglass retro-fit is Manufactured by local Metro Glass or Stake Glass.
+• Glazing Type: 
+• Timber: Doors & windows if quoted have pre-primed timber beads; Modglass staff to explain the process.
+• Seals: New backing rubbers around fixed panels, opening windows (Sash), or slider door panels.
+• Waste: Single glazed glass and metal will be removed by Modglass retro-fit from homeowners' property.
+• Glass Cleaning: Inside out window cleaners will make contact with the homeowner once Modglass receives final payment.
+• Ownership: All double glaze windows and metal are the property of Modglass retro-fit until final payment.
+• Warranties: Double glazed Warranty 10 years (All double glazing meets NZ4223.3.2016); Powdercoat Warranty 10 years; Workmanship Warranty 5 years.
+• Installation: Installation time frame will start from your 33% deposit. If the quote is accepted within 60 days from the quoted date, there will be a price guarantee.
+</textarea>
     <div id="buttonContainer">
         <button id="calculate" type="button">Calculate</button>
         <button id="generatePdf">Generate PDF</button>
+		<button id="generateSpecSheetPdf">Download Spec Sheet</button>
+
     </div>
     <?php
     return ob_get_clean();
@@ -120,8 +139,9 @@ private function calculate_pane($pane)
             'sqm' => $sqm,
 			'classic' => $sqm * $glassPrices[$glassType]['classic'] * $markupClassic,
 			'max' => $sqm * $glassPrices[$glassType]['max'] * $markupMax,
-			'xcel' => ($glassType == 'sunxgrey') ? $sqm * $glassPrices[$glassType]['xcel'] * $markupSunxgrey : $sqm * $glassPrices[$glassType]['xcel'] * $markupXcel,
-            'stay' => $stay,
+			'xcel' => $sqm * $glassPrices[$glassType]['xcel'] * $markupXcel,
+			'sunxgrey' => $sqm * $glassPrices[$glassType]['sunxgrey'] * $markupSunxgrey,
+			'stay' => $stay,
             'wheels' => $wheelsCost,
             'handles' => $handlesCost,
             'materials' => $sqm * $materialPricePerSqm,
@@ -136,6 +156,7 @@ private function calculate_pane($pane)
             'classic' => 0,
             'max' => 0,
             'xcel' => 0,
+			'sunxgrey' => 0,
             'stay' => 0,
             'wheels' => 0,
             'handles' => 0,
@@ -148,6 +169,7 @@ private function calculate_pane($pane)
             $windowTotalResults['classic'] += $paneResult['classic'];
             $windowTotalResults['max'] += $paneResult['max'];
             $windowTotalResults['xcel'] += $paneResult['xcel'];
+			$windowTotalResults['sunxgrey'] += $paneResult['sunxgrey']; 
             $windowTotalResults['stay'] += $paneResult['stay'];
             $windowTotalResults['wheels'] += $paneResult['wheels'];
             $windowTotalResults['handles'] += $paneResult['handles'];
@@ -220,98 +242,8 @@ private function calculate_pane($pane)
     // add a page
     $pdf->AddPage();
 
-    // Fetch data from POST
-	$firstName = $_POST['first_name'];
-	$lastName = $_POST['last_name'];
-	$addressLine1 = $_POST['address_line_1'];
-	$addressLine2 = $_POST['address_line_2'];
-	$windowData = $_POST['window_data'];
-	$windowDescriptions = $_POST['window_descriptions']; 
-	$tableData = $_POST['table_data']; 
-	$windowResults = $_POST['window_results']; // Fetch window results data from POST
-	
-	// Concatenate firstName and lastName with a space in between
-	$fullName = $firstName . ' ' . $lastName;
-
-	// Start of the HTML content:
-	$html .= "<p>{$fullName}</p>";
-	$html .= "<p>{$addressLine1}</p>";
-	$html .= "<p>{$addressLine2}</p>";
-	$html .= "<h2>Double Glazing Window Quote</h2>";
-	$html .= "<p>Modglass Double Glazing thanks you for the opportunity to provide you with your Modglass double glazing quotation. This quotation is categorized by room and double glazing solutions, allowing you to select the options that best fit your needs.</p>";
-	$html .= "<p>Our state-of-the-art production lines manufacture Metro's double glazed units, adhering to established quality standards. These units undergo regular and independent testing by BRANZ for durability based on EN1279.</p>";
-	$html .= "<p>Our team of highly trained and skilled glaziers ensures a seamless and prompt installation process, resulting in a high-quality finished product. The key advantages of our Low E double glazed units include: Download our brochure by clicking this link.</p>";
-	$html .= "<p>We are confident that you will enjoy the benefits of our double glazing. If you have any further questions, please feel free to contact us or visit our Modglass website to learn about the positive experiences of other satisfied customers. Please refer to the following page for your quote options. We eagerly await your favorable response. Upon acceptance, a 25% deposit will be required to procure materials for your home.</p>";
-
-    // Iterate over windowData and format the output:
-		foreach($windowData as $windowId => $window) {
-		$html .= "<h3>Window: {$windowId}</h3>";
-		$html .= "<p>Description: {$window['description']}</p>";  // Use 'description' instead of 'window_description'
-		
-		// Calculate totals for each window
-		$totalSqm = 0;
-		$totalClassicPrice = 0;
-		$totalMaxPrice = 0;
-		$totalXcelPrice = 0;
-		foreach($window['panes'] as $pane) {
-			$totalSqm += $pane['sqm'];
-			$totalClassicPrice += $pane['classic'];  // Assuming 'classic', 'max', and 'xcel' are properties of each pane
-			$totalMaxPrice += $pane['max'];
-			$totalXcelPrice += $pane['xcel'];
-		}
-
-		$html .= "<p>Total SQM: {$totalSqm}</p>";
-		$html .= "<p>Total Classic Price: {$totalClassicPrice}</p>";
-		$html .= "<p>Total Max Price: {$totalMaxPrice}</p>";
-		$html .= "<p>Total Xcel Price: {$totalXcelPrice}</p>";
-	}
-
-
-    // Add table data to HTML content
-     if (!empty($windowResults)) {
-    $html .= "<h3>Window Results:</h3>";
-    $html .= "<table>";
-    $html .= "<tr>";
-	$html .= "<th><strong>Window Description</strong></th>";
-	$html .= "<th><strong>SQM</strong></th>";
-	$html .= "<th><strong>Classic Price</strong></th>";
-	$html .= "<th><strong>Max Price</strong></th>";
-	$html .= "<th><strong>Xcel Price</strong></th>";
-	$html .= "</tr>";
-    foreach ($windowResults as $windowResult) {
-        $classic = $windowResult['window_total']['classic'] +
-                    $windowResult['window_total']['materials'] +
-                    $windowResult['window_total']['labour'] +
-                    $windowResult['window_total']['handles'] +
-                    $windowResult['window_total']['stay'] +
-                    $windowResult['window_total']['wheels'];
-
-        $max = $windowResult['window_total']['max'] +
-                $windowResult['window_total']['materials'] +
-                $windowResult['window_total']['labour'] +
-                $windowResult['window_total']['handles'] +
-                $windowResult['window_total']['stay'] +
-                $windowResult['window_total']['wheels'];
-
-        $xcel = $windowResult['window_total']['xcel'] +
-                $windowResult['window_total']['materials'] +
-                $windowResult['window_total']['labour'] +
-                $windowResult['window_total']['handles'] +
-                $windowResult['window_total']['stay'] +
-                $windowResult['window_total']['wheels'];
-
-        $html .= "<tr>";
-        $html .= "<td>{$windowResult['window_description']}</td>";
-        $html .= "<td>" . number_format($windowResult['window_total']['sqm'], 2) . "</td>";
-        $html .= "<td>$" . number_format($classic, 2) . "</td>";
-        $html .= "<td>$" . number_format($max, 2) . "</td>";
-        $html .= "<td>$" . number_format($xcel, 2) . "</td>";
-        $html .= "</tr>";
-    }
-    $html .= "</table>";
-}
-
-
+    // Include the HTML content from the separate file
+    include 'pdf_template.php';
 
     // Print text using writeHTMLCell()
     $pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
@@ -321,6 +253,53 @@ private function calculate_pane($pane)
     echo $output;
     die();
 }
+public function generate_spec_sheet_pdf() {
+    // create new PDF document
+    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+    // set document information
+    $pdf->SetAuthor('Dan Sutherland');
+    $pdf->SetTitle('Quote Spec Sheet');
+    $pdf->SetSubject('Spec Sheet');
+    $pdf->SetKeywords('TCPDF, PDF, spec sheet');
+
+    // set default header data
+    $pdf->SetHeaderData('', 0, 'Modglass', 'https://modglass.co.nz');
+
+    // set header and footer fonts
+    $pdf->setHeaderFont(Array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
+    $pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
+
+    // set default monospaced font
+    $pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+
+    // set margins
+    $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
+    $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
+    $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
+
+    // set auto page breaks
+    $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+
+    // set image scale factor
+    $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+
+    // add a page
+    $pdf->AddPage();
+
+    // Include the HTML content from the separate file
+    include 'pdf_spec_sheet.php';
+
+    // Print text using writeHTMLCell()
+    $pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
+
+    // Close and output PDF document
+    $output = $pdf->Output('Quote_Spec_Sheet.pdf', 'I'); // This will output the PDF to the browser
+    echo $output;
+    die();
+}
+
+
 
 }
 
