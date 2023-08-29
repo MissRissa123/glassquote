@@ -73,6 +73,7 @@
             <th>Classic Price</th>
             <th>Max Price</th>
             <th>Xcel Price</th>
+			<th>SunX Grey Price</th>
             <th>Stay Price</th>
             <th>Wheels</th>
             <th>Handles</th>
